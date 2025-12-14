@@ -8,23 +8,55 @@ function setActiveMenu(){
   });
 }
 
-function renderPostItem(p, { showContent=false } = {}){
-  const title = escapeHtml(p.title);
+async function loadSiteConfig(){
+  try{
+    const res = await fetch("./data/site.json", { cache: "no-store" });
+    if(!res.ok) throw new Error("sem site.json");
+    return await res.json();
+  }catch{
+    // defaults se o arquivo não existir
+    return {
+      authorName: "Autor",
+      siteName: "Ad Veritatem",
+      tagline: "Um caminhar pela Palavra"
+    };
+  }
+}
+
+function applyTokens(str, cfg){
+  if(!str) return "";
+  return str
+    .replaceAll("{{AUTHOR}}", cfg.authorName ?? "")
+    .replaceAll("{{SITE_NAME}}", cfg.siteName ?? "")
+    .replaceAll("{{TAGLINE}}", cfg.tagline ?? "");
+}
+
+function renderPostItem(p, cfg, { showContent=false } = {}){
+  const id = escapeHtml(p.id || "");
+  const titleRaw = applyTokens(p.title || "", cfg);
+  const excerptRaw = applyTokens(p.excerpt || "", cfg);
+  const contentRaw = applyTokens(p.content || "", cfg);
+
+  const title = escapeHtml(titleRaw);
+  const excerpt = escapeHtml(excerptRaw);
+
   const date = formatDate(p.date);
   const book = escapeHtml(p.bibleBook || "");
   const ref = escapeHtml(p.bibleRef || "");
-  const excerpt = escapeHtml(p.excerpt || "");
   const topics = Array.isArray(p.topics) ? p.topics : [];
   const tags = topics.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
 
+  // Link do post (Home) -> Arquivos com id
+  const link = id ? `arquivos.html?id=${encodeURIComponent(p.id)}` : "arquivos.html";
+
   const content = showContent
-    ? `<hr class="sep"><div class="small" style="white-space:pre-wrap">${escapeHtml(p.content || "")}</div>`
+    ? `<hr class="sep"><div class="small" style="white-space:pre-wrap">${escapeHtml(contentRaw)}</div>`
     : "";
 
   return `
-    <article class="post">
+    <article class="post" id="${id ? `post-${id}` : ""}">
       <div class="kicker">${book}${ref ? " • " + ref : ""}</div>
-      <h2>${title}</h2>
+      <h2><a href="${link}">${title}</a></h2>
       <div class="meta">
         <span>📅 ${date}</span>
         <span>🏷️ ${topics.length ? escapeHtml(topics.join(", ")) : "Sem temas"}</span>
@@ -36,14 +68,14 @@ function renderPostItem(p, { showContent=false } = {}){
   `;
 }
 
-async function homePage(){
+async function homePage(cfg){
   const list = document.querySelector("#recentPosts");
   if(!list) return;
 
   try{
     const posts = await loadPosts();
     const latest = posts.slice(0, 8);
-    list.innerHTML = latest.map(p => renderPostItem(p)).join("");
+    list.innerHTML = latest.map(p => renderPostItem(p, cfg)).join("");
   }catch(err){
     list.innerHTML = `<div class="pad notice">Erro: ${escapeHtml(err.message)}</div>`;
   }
@@ -51,7 +83,7 @@ async function homePage(){
 
 function uniq(arr){ return [...new Set(arr)].filter(Boolean); }
 
-async function arquivosPage(){
+async function arquivosPage(cfg){
   const container = document.querySelector("#archiveResults");
   const q = document.querySelector("#q");
   const bookSel = document.querySelector("#book");
@@ -67,12 +99,30 @@ async function arquivosPage(){
     return;
   }
 
-  // Preenche selects
+  const params = new URLSearchParams(location.search);
+  const focusId = params.get("id")?.trim();
+
   const books = uniq(posts.map(p => p.bibleBook)).sort((a,b)=>a.localeCompare(b));
   const topics = uniq(posts.flatMap(p => Array.isArray(p.topics) ? p.topics : [])).sort((a,b)=>a.localeCompare(b));
 
   bookSel.innerHTML = `<option value="">Todos os livros</option>` + books.map(b=>`<option>${escapeHtml(b)}</option>`).join("");
   topicSel.innerHTML = `<option value="">Todos os temas</option>` + topics.map(t=>`<option>${escapeHtml(t)}</option>`).join("");
+
+  // Se veio com ?id=..., filtra direto aquele post
+  if(focusId){
+    const found = posts.filter(p => p.id === focusId);
+    count.textContent = `${found.length} texto(s)`;
+    container.innerHTML = found.map(p => renderPostItem(p, cfg, { showContent:true })).join("")
+      || `<div class="pad notice">Não achei nenhum texto com id "${escapeHtml(focusId)}".</div>`;
+
+    // opcional: rola até o artigo
+    setTimeout(()=>{
+      const el = document.getElementById(`post-${focusId}`);
+      if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+
+    return;
+  }
 
   function apply(){
     const term = q.value.trim().toLowerCase();
@@ -94,7 +144,7 @@ async function arquivosPage(){
     count.textContent = `${filtered.length} texto(s)`;
 
     container.innerHTML = filtered
-      .map(p => renderPostItem(p, { showContent:true }))
+      .map(p => renderPostItem(p, cfg, { showContent:true }))
       .join("") || `<div class="pad notice">Nenhum texto encontrado com esses filtros.</div>`;
   }
 
@@ -125,9 +175,10 @@ function pixCopy(){
   });
 }
 
-document.addEventListener("DOMContentLoaded", ()=>{
+document.addEventListener("DOMContentLoaded", async ()=>{
   setActiveMenu();
-  homePage();
-  arquivosPage();
+  const cfg = await loadSiteConfig();
+  await homePage(cfg);
+  await arquivosPage(cfg);
   pixCopy();
 });
