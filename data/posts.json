@@ -1,1 +1,12 @@
-QQ coisa
+[
+  {
+    "id": "inicio-ad-veritatem",
+    "title": "Primeira nota",
+    "date": "2025-12-14",
+    "bibleBook": "Introdução",
+    "bibleRef": "",
+    "topics": ["Apresentação"],
+    "excerpt": "Uma nota inicial para inaugurar o Ad Veritatem.",
+    "content": "Este texto marca o início do espaço Ad Veritatem.\n\nAqui registro notas pessoais de estudo bíblico, sem pretensão de concluir ou ensinar, apenas de permanecer no caminho."
+  }
+]
