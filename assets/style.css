@@ -170,36 +170,23 @@ a:hover{ text-decoration: underline; }
   margin-top: 8px;
 }
 
-/* =========================
-   IMAGEM DENTRO DO POST
-   - Responsiva
-   - NÃO corta feio
-   - Autofit no mobile
-========================= */
+/* IMAGEM DO POST — desktop mostra inteira (sem corte), mobile controla altura */
 .post-image{
   width: 100%;
-  height: auto;
+  height: auto;           /* chave: nunca corta */
   display: block;
-
-  /* controle de “tamanho ideal” em qualquer tela */
-  max-height: 70vh;
-
-  /* isto impede corte agressivo */
-  object-fit: contain;
-
-  /* se sobrar espaço, fica bonito */
-  background: rgba(0,0,0,.18);
-
   border-radius: 14px;
   margin: 1.5rem 0 2rem 0;
   opacity: 0.95;
 }
 
-/* Se você quiser um “modo banner” opcional (corta pouco, mas corta),
-   você pode aplicar class="post-image cover" no HTML.
-*/
-.post-image.cover{
-  object-fit: cover;
+/* só no mobile a gente limita a altura, sem cortar */
+@media (max-width: 700px){
+  .post-image{
+    max-height: 420px;
+    object-fit: contain;  /* se o navegador precisar “encaixar”, não corta */
+    background: rgba(0,0,0,.18);
+  }
 }
 
 /* =========================
@@ -256,3 +243,4 @@ button:hover{ filter: brightness(1.08); }
 
 .small{ font-size: 13px; color: var(--muted); }
 hr.sep{ border:0; border-top: 1px solid var(--border); margin: 14px 0; }
+
